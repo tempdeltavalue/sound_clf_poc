@@ -1,0 +1,6 @@
+{
+  "MLModelCreatorDefinedKey" : {
+    "com.github.apple.coremltools.version" : "6.3.0",
+    "com.github.apple.coremltools.source" : "tensorflow==2.12.0"
+  }
+}
