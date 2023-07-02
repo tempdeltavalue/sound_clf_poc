@@ -38,6 +38,25 @@ struct ContentView: View {
     }
     
     func clfButtonTapped() {
+        let path = Bundle.main.path(forResource: "8_h.wav", ofType: nil)!
+        let file = try! AVAudioFile(forReading: URL(string: path)!)
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: file.fileFormat.sampleRate, channels: 1, interleaved: false)!
+
+        let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)
+        try! file.read(into: buf!)
+
+        // this makes a copy, you might not want that
+        let floatArray = Array(UnsafeBufferPointer(start: buf!.floatChannelData![0], count:Int(buf!.frameLength)))
+
+        print("floatArray \(floatArray)\n")
+        
+    }
+    
+
+    
+    
+    
+    func startClassification() {
         let path = Bundle.main.path(forResource: "1_0.wav", ofType: nil)!
         let audioFileURL = URL(fileURLWithPath: path)
         
@@ -58,8 +77,6 @@ struct ContentView: View {
         } catch {
             print(error)
         }
-        
-        
     }
 }
 
@@ -108,3 +125,48 @@ private extension ContentView {
 
 
 }
+
+
+
+// AVFoundation audio splitting
+// https://medium.com/macoclock/splitting-audio-with-swift-ba765281c50
+// How to get audio without storing
+//func startSplitting() {
+//    let path = Bundle.main.path(forResource: "8_h.wav", ofType: nil)!
+//    let audioFileURL = URL(fileURLWithPath: path)
+//    // Get the file as an AVAsset
+//    let asset: AVAsset = AVAsset(url: audioFileURL)
+//
+//    // Get the length of the audio file asset
+//    let duration = CMTimeGetSeconds(asset.duration)
+//    // Determine how many segments we want
+//    let numOfSegments = 9600
+//    // For each segment, we need to split it up
+//    for index in 0...numOfSegments {
+//        splitAudio(asset: asset, segment: index)
+//    }
+//}
+//
+//func splitAudio(asset: AVAsset, segment: Int) {
+//    // Create a new AVAssetExportSession
+//    let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A)!
+//    // Set the output file type to m4a
+//    exporter.outputFileType = AVFileType.m4a
+//    // Create our time range for exporting
+//    let startTime = CMTimeMake(value: Int64(5 * 60 * segment), timescale: 1)
+//    let endTime = CMTimeMake(value: Int64(5 * 60 * (segment+1)), timescale: 1)
+//    // Set the time range for our export session
+//    exporter.timeRange = CMTimeRangeFromTimeToTime(start: startTime, end: endTime)
+//    // Set the output file path
+//    exporter.outputURL = URL(string: "file:///Users/campionfellin/Desktop/audio-\(segment).m4a")
+//    // Do the actual exporting
+//    exporter.exportAsynchronously(completionHandler: {
+//        switch exporter.status {
+//            case AVAssetExportSession.Status.failed:
+//                print("Export failed.")
+//            default:
+//                print("Export complete.")
+//        }
+//    })
+//    return
+//}
