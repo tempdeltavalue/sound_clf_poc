@@ -38,11 +38,12 @@ struct ContentView: View {
     }
     
     
-    // TO DO:
-    // https://stackoverflow.com/questions/42178958/write-array-of-floats-to-a-wav-audio-file-in-swift
     
     func clfButtonTapped() {
-        
+        split_and_infer()
+    }
+    
+    func split_and_infer() {
         if let url = Bundle.main.url(forResource: "8_h", withExtension: "wav") {
             let file = try! AVAudioFile(forReading: url)
             if let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: file.fileFormat.sampleRate, channels: 1, interleaved: false) {
@@ -58,8 +59,6 @@ struct ContentView: View {
                     
                     let chunks = floatArray.splitInSubArrays(into: 2)
                     saveWav(chunks[0])
-
-
                 }
             }
         }
@@ -110,7 +109,7 @@ struct ContentView: View {
     }
     
     
-    func startClassification(audioFileURL: URL = URL(fileURLWithPath: Bundle.main.path(forResource: "1_0.wav", ofType: nil)!)) {
+    func startClassification(audioFileURL: URL = URL(fileURLWithPath: Bundle.main.path(forResource: "out2.wav", ofType: nil)!)) {
         
         print("Audio file url for prediction", audioFileURL.absoluteString)
         let resultsObserver = ResultsObserver()
