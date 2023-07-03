@@ -37,29 +37,82 @@ struct ContentView: View {
         .padding()
     }
     
+    
+    // TO DO:
+    // https://stackoverflow.com/questions/42178958/write-array-of-floats-to-a-wav-audio-file-in-swift
+    
     func clfButtonTapped() {
-        let path = Bundle.main.path(forResource: "8_h.wav", ofType: nil)!
-        let file = try! AVAudioFile(forReading: URL(string: path)!)
-        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: file.fileFormat.sampleRate, channels: 1, interleaved: false)!
-
-        let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)
-        try! file.read(into: buf!)
-
-        // this makes a copy, you might not want that
-        let floatArray = Array(UnsafeBufferPointer(start: buf!.floatChannelData![0], count:Int(buf!.frameLength)))
-
-        print("floatArray \(floatArray)\n")
         
+        if let url = Bundle.main.url(forResource: "8_h", withExtension: "wav") {
+            let file = try! AVAudioFile(forReading: url)
+            if let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: file.fileFormat.sampleRate, channels: 1, interleaved: false) {
+                
+                //  buffer byte capacity cannot be represented by an uint32_t
+                let audioFrameCount = AVAudioFrameCount(file.fileFormat.sampleRate * 6)  // file.length // 2 seconds
+
+                if let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: audioFrameCount) {
+                    try! file.read(into: buf)
+                    
+                    // this makes a copy,
+                    let floatArray = Array(UnsafeBufferPointer(start: buf.floatChannelData![0], count:Int(buf.frameLength)))
+                    
+                    let chunks = floatArray.splitInSubArrays(into: 2)
+                    saveWav(chunks[0])
+
+
+                }
+            }
+        }
+    }
+
+    
+    // https://stackoverflow.com/questions/42178958/write-array-of-floats-to-a-wav-audio-file-in-swift
+    func saveWav(_ buff: [Float]) {
+        let SAMPLE_RATE =  44100
+        let fileManager = FileManager.default
+
+        let documentDirectory = try! fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor:nil, create:false)
+        try! FileManager.default.createDirectory(atPath: documentDirectory.path, withIntermediateDirectories: true, attributes: nil)
+        let url = documentDirectory.appendingPathComponent("out2.wav")
+        
+
+        let outputFormatSettings = [
+            AVFormatIDKey:kAudioFormatLinearPCM,
+            AVLinearPCMBitDepthKey:32,
+            AVLinearPCMIsFloatKey: true,
+            //  AVLinearPCMIsBigEndianKey: false,
+            AVSampleRateKey: SAMPLE_RATE,
+            AVNumberOfChannelsKey: 1
+            ] as [String : Any]
+
+        let audioFile = try? AVAudioFile(forWriting: url, settings: outputFormatSettings, commonFormat: AVAudioCommonFormat.pcmFormatFloat32, interleaved: true)
+
+        let bufferFormat = AVAudioFormat(settings: outputFormatSettings)!
+
+        let outputBuffer = AVAudioPCMBuffer(pcmFormat: bufferFormat, frameCapacity: AVAudioFrameCount(buff.count))!
+
+        // Extra step
+        for i in 0..<buff.count {
+            outputBuffer.floatChannelData!.pointee[i] = Float( buff[i] )
+        }
+        //
+        
+        outputBuffer.frameLength = AVAudioFrameCount( buff.count )
+
+        do{
+            try audioFile?.write(from: outputBuffer)
+            startClassification(audioFileURL: url)
+
+
+        } catch let error as NSError {
+            print("error:", error.localizedDescription)
+        }
     }
     
-
     
-    
-    
-    func startClassification() {
-        let path = Bundle.main.path(forResource: "1_0.wav", ofType: nil)!
-        let audioFileURL = URL(fileURLWithPath: path)
+    func startClassification(audioFileURL: URL = URL(fileURLWithPath: Bundle.main.path(forResource: "1_0.wav", ofType: nil)!)) {
         
+        print("Audio file url for prediction", audioFileURL.absoluteString)
         let resultsObserver = ResultsObserver()
         
         guard let soundClfRequest = soundClfRequest else {
@@ -87,6 +140,18 @@ struct ContentView_Previews: PreviewProvider {
 }
 
 
+
+
+
+extension Array {
+    func splitInSubArrays(into size: Int) -> [[Element]] {
+        return (0..<size).map {
+            stride(from: $0, to: count, by: size).map { self[$0] }
+        }
+    }
+}
+
+
 // Result observer
 
 class ResultsObserver: NSObject, SNResultsObserving {
@@ -97,14 +162,18 @@ class ResultsObserver: NSObject, SNResultsObserving {
         }
         
         print(classificationResult)
+        
 
     }
     
     func request(_ request: SNRequest, didFailWithError error: Error) {
         print("result did fail with error", error)
+        
+        
     }
     
     func requestDidComplete(_ request: SNRequest) {
+        
         
     }
 }
