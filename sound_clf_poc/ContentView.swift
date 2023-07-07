@@ -54,9 +54,13 @@ struct ContentView: View {
     func split_and_infer() {
         if let url = Bundle.main.url(forResource: "1_min", withExtension: "wav") {
             let file = try! AVAudioFile(forReading: url)
-            if let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: file.fileFormat.sampleRate, channels: 1, interleaved: false) {
+            if let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                          sampleRate: file.fileFormat.sampleRate,
+                                          channels: 1,
+                                          interleaved: false) {
                 
                 //  buffer byte capacity cannot be represented by an uint32_t
+                
                 let audioFrameCount = AVAudioFrameCount(file.fileFormat.sampleRate * 100)  // file.length
 
                 if let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: audioFrameCount) {
@@ -66,34 +70,36 @@ struct ContentView: View {
                     let floatArray = Array(UnsafeBufferPointer(start: buf.floatChannelData![0], count:Int(buf.frameLength)))
 
                     // raw inference
+                    
+                    
+                    let N_CHUNKS = 50
+                    var inputArray: [[Float]] = floatArray.splitInSubArrays(into: N_CHUNKS)
+                    
                     do {
                         let batch_size: Int = 1
                         
-                        var inputArray: [[Float]] = floatArray.splitInSubArrays(into: 10)
-//                        inputArray[0] = Array<Float>(inputArray[0][0...44100])// Model input size
-                        
-                        for i in 0..<batch_size {
-                            print(i)
-                            inputArray[i] = Array<Float>(inputArray[i][0...44100])
-                        }
-//                        inputArray[1] = Array<Float>(inputArray[1][0...44100])
-                        
                         //Batch size = 10 ?
                         var input = try MLMultiArray(shape: [1, 44100, 1], dataType: .float64)
-                        
-                        //Looks seely
-                        //https://stackoverflow.com/questions/67836718/how-to-initialise-a-multi-dimensional-mlmultiarray
-                        for batchIndex in 0..<batch_size {  //<inputArray.count
-                            for row in 0..<inputArray[0].count {
-                                    input[[batchIndex, row, 1] as [NSNumber]] = (inputArray[batchIndex][row]) as NSNumber
-                                }
-                        }
 
-                        let modelInput = test_model2Input(input_4: input)
-                        let prediction = try floatModel?.prediction(input: modelInput)
+                        for i in 0..<inputArray.count {
+                            inputArray[i] = Array<Float>(inputArray[i][0...44100])
+                            
+                            //Looks seely
+                            //https://stackoverflow.com/questions/67836718/how-to-initialise-a-multi-dimensional-mlmultiarray
+                            for batchIndex in 0..<batch_size {  //<inputArray.count
+                                for row in 0..<inputArray[0].count {
+                                        input[[batchIndex, row, 1] as [NSNumber]] = (inputArray[batchIndex][row]) as NSNumber
+                                    }
+                            }
+
+                            let modelInput = test_model2Input(input_4: input)
+                            let prediction = try floatModel?.prediction(input: modelInput)
+                            
+                            guard let prediction = prediction else { return }
+                            print(prediction.Identity)
+                        }
                         
-                        guard let prediction = prediction else { return }
-                        print(prediction.Identity)
+
                     } catch {
                         print("raw inf error: ", error)
                     }
@@ -189,6 +195,12 @@ extension Array {
     func splitInSubArrays(into size: Int) -> [[Element]] {
         return (0..<size).map {
             stride(from: $0, to: count, by: size).map { self[$0] }
+        }
+    }
+    
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
         }
     }
 }
