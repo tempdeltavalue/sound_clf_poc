@@ -14,7 +14,6 @@ struct ContentView: View {
     var soundClfRequest: SNClassifySoundRequest?
     
     // float model
-//    var floatModel: test_model3? // Batch model
     var floatModel: test_model2?
 
     init() {
@@ -72,42 +71,59 @@ struct ContentView: View {
                     // raw inference
                     
                     
-                    let N_CHUNKS = 50
-                    var inputArray: [[Float]] = floatArray.splitInSubArrays(into: N_CHUNKS)
+                    let batch_size: Int = 10
+                    let crop_len: Int = 44100
                     
-                    do {
-                        let batch_size: Int = 1
-                        
-                        //Batch size = 10 ?
-                        var input = try MLMultiArray(shape: [1, 44100, 1], dataType: .float64)
+                    var crop_arr: [[Float]] = floatArray.chunks(crop_len)
+                    crop_arr = Array(crop_arr[...21])  // take first 20 seconds Convert slice to arr
+                    
+                    
+                    var batch_input = [test_model2Input]()
+                    
+                    var start = CFAbsoluteTimeGetCurrent()
 
-                        for i in 0..<inputArray.count {
-                            inputArray[i] = Array<Float>(inputArray[i][0...44100])
+                    for one_sec in crop_arr {
+                        do {
                             
-                            //Looks seely
-                            //https://stackoverflow.com/questions/67836718/how-to-initialise-a-multi-dimensional-mlmultiarray
-                            for batchIndex in 0..<batch_size {  //<inputArray.count
-                                for row in 0..<inputArray[0].count {
-                                        input[[batchIndex, row, 1] as [NSNumber]] = (inputArray[batchIndex][row]) as NSNumber
-                                    }
+                            if  batch_input.count == batch_size {
+                                // Make inference
+                                let prediction = try floatModel?.predictions(inputs: batch_input)
+                                
+                                guard let prediction = prediction else { return }
+                                
+                                let end = CFAbsoluteTimeGetCurrent()
+                                let duration = end - start
+                                
+
+                                print("\n Batch prediction inf time:", duration)
+                                for pred in prediction {
+                                    print(pred.Identity)
+                                }
+                                
+                                batch_input.removeAll()
+                                
+                                start = CFAbsoluteTimeGetCurrent()
+
+                            } else {
+                                let input_placeholder = try MLMultiArray(shape: [1, 44100, 1], dataType: .float64)
+
+                                // Accumulate batch
+                                //Looks seely
+                                //https://stackoverflow.com/questions/67836718/how-to-initialise-a-multi-dimensional-mlmultiarray
+                                for row in 0..<crop_len {
+                                    input_placeholder[[0, row, 1] as [NSNumber]] = (one_sec[row]) as NSNumber
+                                }
+                                
+                                let modelInput = test_model2Input(input_4: input_placeholder)
+                                batch_input.append(modelInput)
                             }
-
-                            let modelInput = test_model2Input(input_4: input)
-                            let prediction = try floatModel?.prediction(input: modelInput)
-                            
-                            guard let prediction = prediction else { return }
-                            print(prediction.Identity)
+                        } catch {
+                            print("Error!: ", error.localizedDescription)
                         }
+                    
                         
 
-                    } catch {
-                        print("raw inf error: ", error)
                     }
-                    ///
-                    ///
-                    
-
-//                    saveWav(chunks[0])
                 }
             }
         }
@@ -191,16 +207,11 @@ struct ContentView_Previews: PreviewProvider {
 
 
 
+// https://gist.github.com/ericdke/fa262bdece59ff786fcb
 extension Array {
-    func splitInSubArrays(into size: Int) -> [[Element]] {
-        return (0..<size).map {
-            stride(from: $0, to: count, by: size).map { self[$0] }
-        }
-    }
-    
-    func chunked(into size: Int) -> [[Element]] {
-        return stride(from: 0, to: count, by: size).map {
-            Array(self[$0 ..< Swift.min($0 + size, count)])
+    func chunks(_ chunkSize: Int) -> [[Element]] {
+        return stride(from: 0, to: self.count, by: chunkSize).map {
+            Array(self[$0..<Swift.min($0 + chunkSize, self.count)])
         }
     }
 }
