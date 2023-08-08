@@ -6,6 +6,6 @@
 
 
 [colab:](https://colab.research.google.com/drive/155CqpqK2xPKLxcm7Szo832_LWqhXa7Ba?usp=sharing)
-[notes:](https://docs.google.com/document/d/1rQaxuJxsvUhXv_i_4NuJC6rIoUZYUNiNPNpaFwHqW_U/edit?usp=sharing)
+[notes:](https://docs.google.com/document/d/1FOtoa-onaG-P0Q_QVWOxmIOQbmNaMnsSOqTN5oJr9sI/edit?usp=sharing)
 
 
